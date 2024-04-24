@@ -7,7 +7,6 @@
 #include <fcntl.h>
 #include <sys/time.h>
 
-#define ACK_SIZE 3 // Size of ACK frame, adjust as needed
 
 int main() {
     char *ip = "127.0.0.1";
@@ -16,8 +15,9 @@ int main() {
     struct sockaddr_in server_addr, client_addr;
     socklen_t addr_size;
     char buffer[1024];
-    char ack[ACK_SIZE]; // Acknowledgment frame
-    int message_number = 1;
+    char ack[3]; // Acknowledgment frame
+    int expecting_sequence_number = 0;
+    char str_expecting_sequence_number[3];
     int n;
 
     server_sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -46,27 +46,54 @@ int main() {
     client_sock = accept(server_sock, (struct sockaddr*)&client_addr, &addr_size);
     printf("[+]Client connected.\n");
 
-
     // Main loop to check client activity
+    fd_set read_fds;
+    struct timeval timeout;
+    
+    timeout.tv_sec = 5;
+    timeout.tv_usec = 0;
     while (1) {
-            // Client is active, handle received messages as before
-            bzero(buffer, 1024);
-            recv(client_sock, buffer, sizeof(buffer), 0);
+    
+        FD_ZERO(&read_fds);
+        FD_SET(client_sock, &read_fds);
+    
+        bzero(buffer, 1024);
+        bzero(ack, 3);
+        recv(client_sock, buffer, sizeof(buffer), 0);
+        recv(client_sock, ack, sizeof(ack), 0);
+        sprintf(str_expecting_sequence_number, "%s", expecting_sequence_number);
 
-	    printf("- Received %s\n", buffer);
-            // Simulate acknowledgment delay
-            sleep(1);
+        // Use select() to check for readability of the client socket
+        int ready = select(client_sock + 1, &read_fds, NULL, NULL, &timeout);
 
-            // Prepare and send acknowledgment to the client
-            sprintf(ack, "%s", buffer);
+        if (ready == -1) {
+            perror("[-]Select error");
+            break;
+        } else if (ready == 0) {
+            // Timeout occurred, client is not active
+            printf("Client inactive. TimeOut.....\n\n");
+        } else {
+         
             
-            send(client_sock, ack, sizeof(ack), 0);
-            printf("- Sending ACK%s\n", ack);
+            
+            
+            if (buffer[0] == '0') {
+                printf("Exiting\n");
+                break;
+            } else if (ack == str_expecting_sequence_number){
+	        printf("- Received %s\n", buffer);
+                // Simulate acknowledgment delay
+                sleep(1);
 
-            message_number++;
+                // Prepare and send acknowledgment to the client
+                send(client_sock, ack, sizeof(ack), 0);
+                printf("- Sending ACK%s\n", ack);
 
-            bzero(buffer, 1024);
-            printf("\n");
+                expecting_sequence_number++;
+                printf("\n");
+            }
+
+        }
     }
 
     // Disconnect present client from server
@@ -74,4 +101,3 @@ int main() {
     printf("[+]Client disconnected.\n\n");
     return 0;
 }
-

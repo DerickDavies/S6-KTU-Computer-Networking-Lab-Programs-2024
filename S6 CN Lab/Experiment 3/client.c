@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-// Header file that provides access to close() function / system functions
+// Header file that provides access to close() read() write() functions / system functions
 #include<unistd.h>
 // Header file for internet functions like bind, socket, send, recv, inet_addr => ipaddr -> binary
 #include<arpa/inet.h>
@@ -13,7 +13,6 @@ int main(){
 
   int sock;
   struct sockaddr_in addr;
-  socklen_t addr_size;
   char buffer[1000];
   int n;
   // Setup socket
@@ -22,7 +21,7 @@ int main(){
   // 0 means 2 way commn. protocol
   sock = socket(AF_INET, SOCK_STREAM, 0);
   if (sock < 0){
-    perror("[-]Socket error");
+    perror("[-]Socket error: ");
     exit(1);
   }
   printf("[+]TCP client socket created.\n");
